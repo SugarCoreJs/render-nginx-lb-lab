@@ -1,113 +1,69 @@
 # default.conf.template
+upstream backend_servers {
+    server ${BACKEND1}:80;
+    server ${BACKEND2}:80;
+}
+
 server {
     listen 80;
 
-    # Главная страница балансировщика
-    location / {
+    # Страница информации о балансировщике
+    location /info {
         add_header Content-Type text/html;
         return 200 '
         <!DOCTYPE html>
-        <html lang="ru">
+        <html>
         <head>
-            <title>Лабораторная работа: Балансировщик нагрузки</title>
-            <meta charset="UTF-8">
+            <title>Load Balancer Info</title>
             <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    padding: 50px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    margin: 0;
-                }
-                .container {
-                    background: rgba(255,255,255,0.1);
-                    padding: 40px;
-                    border-radius: 15px;
-                    backdrop-filter: blur(10px);
-                    display: inline-block;
-                    max-width: 600px;
-                }
-                h1 { margin-bottom: 30px; }
-                .backend-list {
-                    text-align: left;
-                    margin: 20px 0;
-                    background: rgba(255,255,255,0.2);
-                    padding: 20px;
-                    border-radius: 10px;
-                }
-                .backend-item {
-                    padding: 10px;
-                    margin: 5px 0;
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 5px;
-                }
-                .status { color: #4ade80; font-weight: bold; }
+                body { font-family: Arial; text-align: center; padding: 50px; background: #f8f9fa; }
+                .card { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 10px; }
             </style>
         </head>
         <body>
-            <div class="container">
-                <h1>🚀 Лабораторная работа №1</h1>
-                <h2>Балансировщик нагрузки NGINX + Docker</h2>
-                
-                <div class="backend-list">
-                    <h3>📋 Конфигурация системы:</h3>
-                    <div class="backend-item">
-                        <strong>Балансировщик:</strong> NGINX в Docker
-                    </div>
-                    <div class="backend-item">
-                        <strong>Бэкенд 1:</strong> ${BACKEND1}
-                    </div>
-                    <div class="backend-item">
-                        <strong>Бэкенд 2:</strong> ${BACKEND2}
-                    </div>
-                    <div class="backend-item">
-                        <strong>Алгоритм:</strong> Round Robin
-                    </div>
-                    <div class="backend-item">
-                        <strong>Статус:</strong> <span class="status">АКТИВЕН</span>
-                    </div>
-                </div>
-                
-                <p><strong>Время сервера:</strong> $time_local</p>
-                <p><em>Запросы распределяются между бэкенд-сервисами</em></p>
-                
-                <div style="margin-top: 30px;">
-                    <a href="/health" style="color: #ffeb3b; margin: 0 10px;">Проверить здоровье</a>
-                    <a href="/status" style="color: #ffeb3b; margin: 0 10px;">Статус NGINX</a>
-                </div>
+            <h1>⚖️ Балансировщик нагрузки NGINX</h1>
+            <div class="card">
+                <h3>Конфигурация</h3>
+                <p><strong>Бэкенд 1:</strong> ${BACKEND1}</p>
+                <p><strong>Бэкенд 2:</strong> ${BACKEND2}</p>
+                <p><strong>Алгоритм:</strong> Round Robin</p>
+                <p><a href="/">Тестировать балансировку →</a></p>
             </div>
         </body>
         </html>
         ';
     }
 
-    # Страница здоровья
+    # Health check
     location /health {
-        add_header Content-Type text/html;
-        return 200 '
-        <html>
-        <head><title>Health Check</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-            <h1>✅ Система работает нормально</h1>
-            <p><strong>Балансировщик нагрузки:</strong> ACTIVE</p>
-            <p><strong>Бэкенды:</strong> ${BACKEND1}, ${BACKEND2}</p>
-            <p><a href="/">Вернуться на главную</a></p>
-        </body>
-        </html>
-        ';
+        return 200 "LOAD BALANCER STATUS: ACTIVE\nBackends: ${BACKEND1}, ${BACKEND2}\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Реальная балансировка - основной endpoint
+    location / {
+        proxy_pass http://backend_servers;
+        
+        # Настройки прокси
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Таймауты
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+        
+        # Отладочные headers
+        add_header X-Backend-Server $upstream_addr always;
+        add_header X-Upstream-Response-Time $upstream_response_time always;
     }
 
     # Статус NGINX
-    location /status {
+    location /nginx_status {
         stub_status on;
         access_log off;
-        add_header Content-Type text/plain;
-    }
-
-    # Простой API endpoint для тестирования (исправленные кавычки)
-    location /api/info {
-        add_header Content-Type text/plain;
-        return 200 "Load Balancer Info:\nStatus: active\nBackends: ${BACKEND1}, ${BACKEND2}\n";
+        allow all;
     }
 }
