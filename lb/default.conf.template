@@ -1,3 +1,4 @@
+# default.conf.template
 upstream backends {
     server ${BACKEND1}:80;
     server ${BACKEND2}:80;
@@ -5,10 +6,63 @@ upstream backends {
 
 server {
     listen 80;
+    
+    # Health check - прямой ответ
+    location /health {
+        return 200 "LOAD BALANCER STATUS: ACTIVE\nBackends: ${BACKEND1}, ${BACKEND2}\nTime: $time_local\n";
+        add_header Content-Type text/plain;
+        access_log off;
+    }
+
+    # Статус NGINX
+    location /nginx-status {
+        stub_status on;
+        access_log off;
+        allow all;
+    }
+
+    # Основной location
     location / {
         proxy_pass http://backends;
-        proxy_set_header Host $host;
+        
+        # ПРАВИЛЬНЫЕ настройки для Render + Cloudflare
+        proxy_set_header Host $http_host;  # Оригинальный хост из запроса
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        
+        # Важные таймауты
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+        
+        # Обработка ошибок upstream
+        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+        proxy_next_upstream_tries 2;
+        proxy_next_upstream_timeout 30s;
+        
+        # Отключаем редиректы от бэкендов
+        proxy_redirect off;
+        
+        # Debug headers
+        add_header X-Backend-Server $upstream_addr always;
+        add_header X-Proxy "nginx-load-balancer" always;
+    }
+
+    # Статический ответ для тестирования
+    location /test {
+        add_header Content-Type text/html;
+        return 200 '
+        <html>
+        <head><title>Load Balancer Test</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h1>✅ Load Balancer Working</h1>
+            <p>This is a direct response from the load balancer</p>
+            <p>Backend 1: ${BACKEND1}</p>
+            <p>Backend 2: ${BACKEND2}</p>
+        </body>
+        </html>
+        ';
     }
 }
