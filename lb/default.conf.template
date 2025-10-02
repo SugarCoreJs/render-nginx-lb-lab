@@ -7,62 +7,9 @@ upstream backend_servers {
 server {
     listen 80;
 
-    # Страница информации о балансировщике
-    location /info {
-        add_header Content-Type text/html;
-        return 200 '
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Load Balancer Info</title>
-            <style>
-                body { font-family: Arial; text-align: center; padding: 50px; background: #f8f9fa; }
-                .card { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 10px; }
-            </style>
-        </head>
-        <body>
-            <h1>⚖️ Балансировщик нагрузки NGINX</h1>
-            <div class="card">
-                <h3>Конфигурация</h3>
-                <p><strong>Бэкенд 1:</strong> ${BACKEND1}</p>
-                <p><strong>Бэкенд 2:</strong> ${BACKEND2}</p>
-                <p><strong>Алгоритм:</strong> Round Robin</p>
-                <p><a href="/">Тестировать балансировку →</a></p>
-            </div>
-        </body>
-        </html>
-        ';
-    }
-
-    # Health check
-    location /health {
-        return 200 "LOAD BALANCER STATUS: ACTIVE\nBackends: ${BACKEND1}, ${BACKEND2}\n";
-        add_header Content-Type text/plain;
-    }
-
-    # Реальная балансировка - основной endpoint
     location / {
         proxy_pass http://backend_servers;
-        
-        # Настройки прокси
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Таймауты
-        proxy_connect_timeout 5s;
-        proxy_send_timeout 10s;
-        proxy_read_timeout 10s;
-        
-        # Отладочные headers (исправленные)
-        add_header X-Backend-Server $upstream_addr always;
-    }
-
-    # Статус NGINX
-    location /nginx_status {
-        stub_status on;
-        access_log off;
-        allow all;
     }
 }
