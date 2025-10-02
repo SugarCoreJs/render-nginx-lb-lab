@@ -55,9 +55,8 @@ server {
         proxy_send_timeout 10s;
         proxy_read_timeout 10s;
         
-        # Отладочные headers
+        # Отладочные headers (исправленные)
         add_header X-Backend-Server $upstream_addr always;
-        add_header X-Upstream-Response-Time $upstream_response_time always;
     }
 
     # Статус NGINX
