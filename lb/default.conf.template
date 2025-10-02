@@ -1,5 +1,4 @@
-http {
-    upstream backend {
+  upstream backend {
         server ${BACKEND1};
     	server ${BACKEND2};
 
@@ -32,4 +31,3 @@ http {
             add_header Content-Type text/plain;
         }
     }
-}
