@@ -105,18 +105,9 @@ server {
         add_header Content-Type text/plain;
     }
 
-    # Простой API endpoint для тестирования
-    location /api/balance {
-        add_header Content-Type application/json;
-        return 200 ''"{
-          \"status\": \"active\",
-          \"load_balancer\": \"nginx\",
-          \"backends\": [
-            \"${BACKEND1}\",
-            \"${BACKEND2}\"
-          ],
-          \"algorithm\": \"round_robin\",
-          \"timestamp\": \"$time_local\"
-        }"'';
+    # Простой API endpoint для тестирования (исправленные кавычки)
+    location /api/info {
+        add_header Content-Type text/plain;
+        return 200 "Load Balancer Info:\nStatus: active\nBackends: ${BACKEND1}, ${BACKEND2}\n";
     }
 }
