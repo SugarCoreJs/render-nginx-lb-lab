@@ -1,3 +1,4 @@
+# default.conf.template
 upstream backends {
     server ${BACKEND1}:80;
     server ${BACKEND2}:80;
@@ -6,26 +7,35 @@ upstream backends {
 server {
     listen 80;
     
-    # Статусная страница
-    location /balancer-status {
-        return 200 "Load Balancer is working!\nBackends: ${BACKEND1}, ${BACKEND2}\n";
-        add_header Content-Type text/plain;
+    # Отключаем обработку стандартных ошибок
+    location = /50x.html {
+        return 404;
     }
 
     location / {
         proxy_pass http://backends;
         
-        # Важно: используем оригинальный хост
-        proxy_set_header Host $http_host;
+        # Критически важные настройки
+        proxy_set_header Host $proxy_host;  # Используем хост бэкенда
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
         
-        # Отключаем все редиректы
+        # Отключаем редиректы
         proxy_redirect off;
         
-        # Добавляем заголовок для отладки
-        add_header X-Backend $upstream_addr always;
-        add_header X-Forwarded-By "NGINX-LB" always;
+        add_header X-Backend-Server $upstream_addr always;
+    }
+    
+    location /health {
+        return 200 "OK";
+        add_header Content-Type text/plain;
+    }
+    
+    location /status {
+        stub_status on;
+        access_log off;
+        allow all;
     }
 }
