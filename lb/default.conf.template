@@ -1,17 +1,24 @@
+# default.conf.template
 upstream backends {
-    server ${BACKEND1};
-    server ${BACKEND2};
+    server ${BACKEND1}:80;
+    server ${BACKEND2}:80;
 }
 
 server {
     listen 80;
 
     location / {
-        proxy_pass https://backends;
-        proxy_ssl_server_name on;
-        proxy_ssl_verify off;   # отключаем проверку сертификата
+        proxy_pass http://backends;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        add_header X-Backend-Server $upstream_addr always;
+    }
+    
+    location /health {
+        return 200 "OK";
+        add_header Content-Type text/plain;
     }
 }
