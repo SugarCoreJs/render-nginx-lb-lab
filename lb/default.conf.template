@@ -1,7 +1,7 @@
 # default.conf.template
 upstream backends {
-    server ${BACKEND1}:80;
-    server ${BACKEND2}:80;
+    server ${BACKEND1}:443;
+    server ${BACKEND2}:443;
 }
 
 server {
@@ -13,23 +13,37 @@ server {
     }
 
     location / {
-        proxy_pass http://backends;
+        proxy_pass https://backends;
         
-        # Критически важные настройки
-        proxy_set_header Host $proxy_host;  # Используем хост бэкенда
+        # Критически важные настройки для Cloudflare
+        proxy_ssl_server_name on;
+        proxy_ssl_verify off;
+        
+        # ПРАВИЛЬНЫЙ Host header - используем конкретное доменное имя
+        proxy_set_header Host ${BACKEND1};
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         
+        # Cloudflare specific headers
+        proxy_set_header CF-Connecting-IP $remote_addr;
+        
         # Отключаем редиректы
         proxy_redirect off;
         
         add_header X-Backend-Server $upstream_addr always;
+        add_header X-LoadBalancer "nginx" always;
     }
     
     location /health {
-        return 200 "OK";
+        return 200 "LOAD BALANCER STATUS: OK\nBackends: ${BACKEND1}, ${BACKEND2}\n";
+        add_header Content-Type text/plain;
+    }
+    
+    location /test {
+        # Прямой ответ без прокси для тестирования
+        return 200 "DIRECT RESPONSE FROM LOAD BALANCER\nNo proxy involved\n";
         add_header Content-Type text/plain;
     }
     
